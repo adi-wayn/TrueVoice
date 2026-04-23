@@ -1,0 +1,13 @@
+@import "tailwindcss";
+
+@theme {
+  --color-midnight: #0A0A0A;
+  --color-emerald-muted: #10B981;
+}
+
+body {
+  background-color: var(--color-midnight);
+  color: white;
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+}

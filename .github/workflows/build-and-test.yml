@@ -1,0 +1,58 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 1. Build C++ Audio Capture Service
+      - name: Configure CMake (Audio Capture)
+        run: cmake -S services/audio-capture -B services/audio-capture/build
+
+      - name: Build CMake (Audio Capture)
+        run: cmake --build services/audio-capture/build --config Release
+
+      # 2. Initialize and Test Python Services
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Run Inference Service Entry Point
+        working-directory: services/inference-stt
+        run: uv run main.py
+
+      - name: Run AI Agent Entry Point
+        working-directory: services/ai-agent
+        run: uv run main.py
+
+      # 3. Build Tauri Frontend
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Frontend Dependencies
+        working-directory: apps/dashboard
+        run: npm install
+
+      - name: Build Frontend React Assets
+        working-directory: apps/dashboard
+        run: npm run build

@@ -1,0 +1,61 @@
+# TrueVoice Monorepo .gitignore
+
+# ====================
+# Secrets & Envs
+# ====================
+.env
+.env.development
+.env.production
+*.pem
+*.key
+# Explicitly allow .env.example
+!.env.example
+
+# ====================
+# AI Agent Context
+# ====================
+.agents/
+.cursorrules
+
+# ====================
+# C++ / CMake
+# ====================
+build/
+out/
+.vs/
+CMakeCache.txt
+CMakeFiles/
+
+# ====================
+# Python (Inference & AI Agent)
+# ====================
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.uv/
+.pytest_cache/
+
+# ====================
+# Node / Tauri / React (Dashboard)
+# ====================
+node_modules/
+dist/
+apps/dashboard/src-tauri/target/
+npm-debug.log
+yarn-error.log
+
+# ====================
+# OS & IDE
+# ====================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ====================
+# GitHub Actions (DO NOT IGNORE)
+# ====================
+!.github/
