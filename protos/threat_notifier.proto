@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package truevoice.agent;
+
+service ThreatNotifier {
+  rpc GetThreatAlerts(Empty) returns (stream ThreatAlert);
+}
+
+message Empty {}
+
+message ThreatAlert {
+  string matched_text = 1;
+  float risk_score = 2;        // Range 0.0 to 1.0
+  string threat_category = 3;  // e.g., "Bank Spoofing", "OTP Request"
+  string suggested_action = 4; // Actionable advice to display to the user
+}

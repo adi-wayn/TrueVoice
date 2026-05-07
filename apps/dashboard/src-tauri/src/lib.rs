@@ -1,3 +1,15 @@
+pub mod truevoice {
+    pub mod agent {
+        tonic::include_proto!("truevoice.agent");
+    }
+    pub mod control {
+        tonic::include_proto!("truevoice.control");
+    }
+    pub mod stream {
+        tonic::include_proto!("truevoice.stream");
+    }
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
 fn greet(name: &str) -> String {
