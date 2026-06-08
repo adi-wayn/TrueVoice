@@ -6,9 +6,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Establish the gRPC pipeline between the C++ audio capture and the Python inference server.
 
 ### Developer 1 (HALEL) - Python Backend
-- [ ] Refactor `services/inference-stt/main.py` into a fully functional gRPC server implementing the `AudioStreamer` service.
-- [ ] Add basic mocking to the `StreamAudio` RPC to print received bytes (verify connection before adding Whisper).
-- [ ] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
+- [x] Refactor `services/inference-stt/main.py` into a fully functional gRPC server implementing the `AudioStreamer` service.
+- [x] Add basic mocking to the `StreamAudio` RPC to print received bytes (verify connection before adding Whisper).
+- [x] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
 
 ### Developer 2 (ADI) - C++ Client
 - [ ] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
