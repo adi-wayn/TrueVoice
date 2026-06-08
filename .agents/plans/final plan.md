@@ -21,9 +21,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Implement the LangGraph reasoning engine and secure it against prompt injection attacks.
 
 ### Developer 1 (HALEL) - AI & Security
-- [ ] Configure project rules in Antigravity to strictly enforce a "Zero-Trust" policy, treating all transcribed audio as untrusted data.
-- [ ] Instruct Antigravity to refuse data-plane instructions (e.g., "Ignore previous instructions") to prevent prompt injection.
-- [ ] Implement the LangGraph state machine in `ai-agent` to analyze the context window for social engineering threats (e.g., OTP requests).
+- [x] Configure project rules in Antigravity to strictly enforce a "Zero-Trust" policy, treating all transcribed audio as untrusted data.
+- [x] Instruct Antigravity to refuse data-plane instructions (e.g., "Ignore previous instructions") to prevent prompt injection.
+- [x] Implement the LangGraph state machine in `ai-agent` to analyze the context window for social engineering threats (e.g., OTP requests).
 
 ---
 
