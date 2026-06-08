@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package truevoice.stream;
+
+service TranscriptStream {
+  rpc SendTranscript(TranscriptFragment) returns (Empty);
+}
+
+message Empty {}
+
+message TranscriptFragment {
+  string text = 1;
+  int32 process_id = 2;
+  int64 timestamp_ms = 3;
+}

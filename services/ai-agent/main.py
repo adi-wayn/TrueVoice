@@ -12,6 +12,10 @@ if current_dir not in sys.path:
 import grpc
 from generated import threat_notifier_pb2
 from generated import threat_notifier_pb2_grpc
+from generated import transcript_stream_pb2
+from generated import transcript_stream_pb2_grpc
+
+from agent import get_agent_graph
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
@@ -27,43 +31,77 @@ else:
     logger.warning(f"No .env file found at {env_path}, using defaults")
 
 class ThreatNotifierServicer(threat_notifier_pb2_grpc.ThreatNotifierServicer):
+    def __init__(self):
+        self.subscribers = set()
+
     async def GetThreatAlerts(self, request, context):
-        logger.info("GetThreatAlerts RPC connection established.")
-        
-        # Define mock alerts to send upon connection
-        mock_alerts = [
-            threat_notifier_pb2.ThreatAlert(
-                matched_text="Can you confirm your OTP?",
-                risk_score=0.95,
-                threat_category="OTP Request",
-                suggested_action="DO NOT share your OTP. Hang up immediately."
-            ),
-            threat_notifier_pb2.ThreatAlert(
-                matched_text="I am calling from your bank to verify a suspicious transaction.",
-                risk_score=0.85,
-                threat_category="Bank Spoofing",
-                suggested_action="Do not provide personal details. Verify calling identity independently."
-            )
-        ]
-
-        # Yield mock alerts
+        queue = asyncio.Queue()
+        self.subscribers.add(queue)
+        logger.info(f"New subscriber registered for threat alerts. Total subscribers: {len(self.subscribers)}")
         try:
-            for alert in mock_alerts:
-                logger.info(f"Yielding mock alert: {alert.threat_category} (Score: {alert.risk_score})")
-                yield alert
-                await asyncio.sleep(0.5)
-
-            # Keep stream open to simulate real-time notification
-            logger.info("Yielded initial mock alerts. Keeping stream open for live alerts...")
             while True:
-                await asyncio.sleep(1.0)
+                alert = await queue.get()
+                yield alert
         except asyncio.CancelledError:
-            logger.info("GetThreatAlerts RPC cancelled by client/server shutdown.")
+            logger.info("Subscriber disconnected.")
             raise
-        except Exception as e:
-            logger.error(f"Error in GetThreatAlerts stream: {e}")
         finally:
-            logger.info("GetThreatAlerts RPC stream closed.")
+            self.subscribers.remove(queue)
+
+    async def broadcast_alert(self, alert):
+        for queue in list(self.subscribers):
+            await queue.put(alert)
+
+class TranscriptStreamServicer(transcript_stream_pb2_grpc.TranscriptStreamServicer):
+    def __init__(self, threat_notifier):
+        self.threat_notifier = threat_notifier
+        self.agent_graph = get_agent_graph()
+        self.states = {}  # pid -> AgentState dictionary
+
+    async def SendTranscript(self, request, context):
+        pid = request.process_id
+        text = request.text
+        
+        # Get or initialize state for this pid
+        if pid not in self.states:
+            self.states[pid] = {
+                "transcript": [],
+                "new_sentence": "",
+                "risk_score": 0.0,
+                "threat_category": "Safe",
+                "suggested_action": "No action required.",
+                "whitelist_detected": False,
+                "process_id": pid
+            }
+            
+        current_state = self.states[pid]
+        current_state["new_sentence"] = text
+        
+        logger.info(f"Running LangGraph agent on new transcript: '{text}' (PID: {pid})")
+        # Run state machine
+        new_state = await self.agent_graph.ainvoke(current_state)
+        
+        # Update our cached state
+        self.states[pid] = new_state
+        
+        # If whitelist was detected, purge memory cache for this PID
+        if new_state.get("whitelist_detected", False):
+            logger.info(f"Whitelist detected. Purging state cache for PID {pid}.")
+            self.states.pop(pid, None)
+            
+        # Broadcast the alert if risk_score > 0.8
+        risk_score = new_state.get("risk_score", 0.0)
+        if risk_score > 0.8:
+            alert = threat_notifier_pb2.ThreatAlert(
+                matched_text=text,
+                risk_score=risk_score,
+                threat_category=new_state.get("threat_category", "Unknown Threat"),
+                suggested_action=new_state.get("suggested_action", "")
+            )
+            logger.info(f"Broadcasting high risk alert: {alert.threat_category} (Score: {alert.risk_score})")
+            await self.threat_notifier.broadcast_alert(alert)
+            
+        return transcript_stream_pb2.Empty()
 
 async def serve():
     # Read port, default to 50052 as per updated plan
@@ -72,9 +110,14 @@ async def serve():
     address = f"{host}:{port}"
 
     server = grpc.aio.server()
-    threat_notifier_pb2_grpc.add_ThreatNotifierServicer_to_server(
-        ThreatNotifierServicer(), server
-    )
+    
+    # Register both servicers
+    threat_notifier = ThreatNotifierServicer()
+    threat_notifier_pb2_grpc.add_ThreatNotifierServicer_to_server(threat_notifier, server)
+    
+    transcript_servicer = TranscriptStreamServicer(threat_notifier)
+    transcript_stream_pb2_grpc.add_TranscriptStreamServicer_to_server(transcript_servicer, server)
+    
     server.add_insecure_port(address)
     logger.info(f"Starting async gRPC server on {address}...")
     await server.start()
