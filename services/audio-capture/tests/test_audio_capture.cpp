@@ -1,23 +1,31 @@
 #include <gtest/gtest.h>
+#include "audio_processor.h"
+#include <vector>
+#include <string>
 
-// A simple test to verify GoogleTest is configured correctly.
-// Later, this will test VAD logic, audio streams, and blocklist enforcement.
-TEST(AudioCaptureTest, BasicTest) {
-    EXPECT_EQ(1, 1);
+// Test class that exposes protected methods or uses public API for testing
+TEST(AudioProcessorTest, InitializationAndDefaults) {
+    AudioProcessor processor;
+    EXPECT_FALSE(processor.IsCapturing());
+    EXPECT_FALSE(processor.IsAborted());
 }
 
-// Dummy test for Blocklist enforcement
-TEST(AudioCaptureTest, BlocklistEnforcement) {
-    // In a real scenario, we'd pass a PID and check if it's blocklisted
-    bool is_blocklisted = true; // Simulating blocklist logic
-    EXPECT_TRUE(is_blocklisted);
+TEST(AudioProcessorTest, BlocklistSetAndGet) {
+    AudioProcessor processor;
+    processor.SetBlocklist({"NonExistentAppXYZ"});
+    
+    // NonExistentAppXYZ is not running, so it should return false
+    EXPECT_FALSE(processor.IsBlocklistedAppRunning());
 }
 
-// Dummy test for VAD filtering
-TEST(AudioCaptureTest, VADFiltering) {
-    // In a real scenario, we'd pass an audio buffer to the VAD and check if speech is detected
-    bool speech_detected = false; // Simulating silence
-    EXPECT_FALSE(speech_detected);
+TEST(AudioProcessorTest, AbortLogicAndPurge) {
+    AudioProcessor processor;
+    
+    // Trigger abort
+    processor.AbortCapture("Test Whitelist Hit");
+    
+    EXPECT_TRUE(processor.IsAborted());
+    EXPECT_FALSE(processor.IsCapturing());
 }
 
 int main(int argc, char **argv) {
