@@ -3,6 +3,9 @@
 @theme {
   --color-midnight: #0A0A0A;
   --color-emerald-muted: #10B981;
+  --color-glass: rgba(255, 255, 255, 0.04);
+  --color-glass-border: rgba(255, 255, 255, 0.08);
+  --color-crimson-alert: #EF4444;
 }
 
 body {
@@ -10,4 +13,65 @@ body {
   color: white;
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+}
+
+.glass-panel {
+  background-color: var(--color-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--color-glass-border);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.pulsate-secure {
+  box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  animation: pulse-secure-anim 2.5s infinite;
+}
+
+@keyframes pulse-secure-anim {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 15px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.pulsate-alert {
+  box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  animation: pulse-alert-anim 1.5s infinite;
+}
+
+@keyframes pulse-alert-anim {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.2s ease-out forwards;
+}
+
+.animate-scale-up {
+  animation: scaleUp 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes scaleUp {
+  from { transform: scale(0.95); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
 }
