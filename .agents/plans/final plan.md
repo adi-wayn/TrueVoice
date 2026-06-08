@@ -31,9 +31,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Automate security checks and set up the cloud repository pipeline.
 
 ### Developer 2 (ADI) - DevOps
-- [ ] Write the `scripts/ai_reviewer.py` script to scan Pull Requests for vulnerabilities.
-- [ ] Update the GitHub Actions workflow (`.github/workflows/build-and-test.yml`) to trigger the AI reviewer on every push/PR.
-- [ ] Ensure the workflow has the correct `permissions` (contents: read, pull-requests: write) to comment on PRs without crashing.
+- [x] Write the `scripts/ai_reviewer.py` script to scan Pull Requests for vulnerabilities.
+- [x] Update the GitHub Actions workflow (`.github/workflows/build-and-test.yml`) to trigger the AI reviewer on every push/PR.
+- [x] Ensure the workflow has the correct `permissions` (contents: read, pull-requests: write) to comment on PRs without crashing.
 
 ---
 
