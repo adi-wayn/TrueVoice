@@ -51,8 +51,8 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Visualize alerts and test the entire system flow.
 
 ### Developer 2 (ADI) - Frontend (Tauri)
-- [ ] Connect the React frontend (`apps/dashboard/src/App.tsx`) to the `ThreatNotifier` gRPC service using Tauri commands.
-- [ ] Build a visual alert component that pops up when a threat is detected.
+- [x] Connect the React frontend (`apps/dashboard/src/App.tsx`) to the `ThreatNotifier` gRPC service using Tauri commands.
+- [x] Build a visual alert component that pops up when a threat is detected.
 
 ### Shared (HALEL & ADI) - Red Team Testing
 - [ ] Conduct a live End-to-End test: Speak a simulated vishing attack into the microphone.
