@@ -11,9 +11,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 - [ ] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
 
 ### Developer 2 (ADI) - C++ Client
-- [ ] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
-- [ ] Integrate an audio library (e.g., PortAudio/RtAudio) into the CMake build.
-- [ ] Implement the logic to capture local microphone data and stream it via `AudioChunk` messages to the Python backend.
+- [x] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
+- [x] Integrate an audio library (e.g., PortAudio/RtAudio) into the CMake build.
+- [x] Implement the logic to capture local microphone data and stream it via `AudioChunk` messages to the Python backend.
 
 ---
 
