@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package truevoice.control;
+
+service ControlStream {
+  rpc AbortCapture(AbortRequest) returns (AbortAck);
+}
+
+message AbortRequest {
+  string reason = 1;           // e.g. "Whitelisted contact 'Danny' detected"
+  int32 process_id = 2;        // Process ID to abort capture for
+}
+
+message AbortAck {
+  bool success = 1;
+}

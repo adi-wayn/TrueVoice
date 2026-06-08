@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package truevoice.audio;
+
+service AudioStreamer {
+  rpc StreamAudio(stream AudioChunk) returns (StreamStatus);
+}
+
+message AudioChunk {
+  bytes raw_pcm_data = 1;      // Raw PCM audio data in RAM
+  int32 sample_rate = 2;       // Target sample rate (e.g. 16000)
+  int32 channels = 3;          // Channels (mono preferred)
+  int64 timestamp_ms = 4;      // Capture epoch
+  int32 process_id = 5;        // Process ID opening the stream
+}
+
+message StreamStatus {
+  bool active = 1;
+  string message = 2;
+}
