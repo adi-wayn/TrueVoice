@@ -41,9 +41,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Connect the local AI agent to external notification systems.
 
 ### Developer 1 (HALEL) - Cloud Integrations
-- [ ] Create a new Scenario in Make.com with a Custom Webhook module as the trigger.
-- [ ] Implement an HTTP POST request in the `ai-agent` that sends data to the Make.com Webhook URL when `risk_score > 0.8`.
-- [ ] Add an Email/Gmail module in Make.com to automatically send a warning email to the user when the webhook is triggered.
+- [x] Create a new Scenario in Make.com with a Custom Webhook module as the trigger.
+- [x] Implement an HTTP POST request in the `ai-agent` that sends data to the Make.com Webhook URL when `risk_score > 0.8`.
+- [x] Add an Email/Gmail module in Make.com to automatically send a warning email to the user when the webhook is triggered.
 
 ---
 
