@@ -175,3 +175,70 @@ async def test_transcript_stream_to_threat_alert_broadcast():
     finally:
         await channel.close()
         await server.stop(0)
+
+# 5. Test Make.com Webhook triggers on high risk score (> 0.8) and is bypassed on low risk
+@pytest.mark.asyncio
+async def test_webhook_trigger_on_high_risk(mocker):
+    from main import ThreatNotifierServicer, TranscriptStreamServicer
+    from generated import transcript_stream_pb2, transcript_stream_pb2_grpc
+    from unittest.mock import AsyncMock
+    
+    # Mock httpx.AsyncClient.post
+    mock_post = mocker.patch("httpx.AsyncClient.post", new_callable=AsyncMock)
+    mock_post.return_value.status_code = 200
+    
+    # Configure webhook URL
+    webhook_url = "https://hook.us1.make.com/test-webhook-123"
+    os.environ["MAKE_WEBHOOK_URL"] = webhook_url
+    
+    # Setup gRPC server
+    server = grpc.aio.server()
+    threat_notifier = ThreatNotifierServicer()
+    transcript_servicer = TranscriptStreamServicer(threat_notifier)
+    transcript_stream_pb2_grpc.add_TranscriptStreamServicer_to_server(transcript_servicer, server)
+    port = server.add_insecure_port("127.0.0.1:0")
+    await server.start()
+    
+    channel = grpc.aio.insecure_channel(f"127.0.0.1:{port}")
+    transcript_stub = transcript_stream_pb2_grpc.TranscriptStreamStub(channel)
+    
+    try:
+        # Case A: High Risk triggers webhook
+        fragment_high = transcript_stream_pb2.TranscriptFragment(
+            text="Can you verify your OTP code immediately?",
+            process_id=1111,
+            timestamp_ms=2000
+        )
+        await transcript_stub.SendTranscript(fragment_high)
+        
+        # Sleep short moment to allow background fire-and-forget task to execute
+        await asyncio.sleep(0.1)
+        
+        # Verify webhook was called
+        webhook_calls = [c for c in mock_post.call_args_list if c[0][0] == webhook_url]
+        assert len(webhook_calls) == 1
+        
+        kwargs = webhook_calls[0][1]
+        payload = kwargs.get("json", {})
+        assert payload["risk_score"] == pytest.approx(0.95)
+        assert payload["threat_category"] == "OTP Request"
+        assert "otp" in payload["suggested_action"].lower()
+        
+        # Reset mock
+        mock_post.reset_mock()
+        
+        # Case B: Low Risk does not trigger webhook
+        fragment_low = transcript_stream_pb2.TranscriptFragment(
+            text="Hello, how are you doing today?",
+            process_id=2222,
+            timestamp_ms=3000
+        )
+        await transcript_stub.SendTranscript(fragment_low)
+        await asyncio.sleep(0.1)
+        
+        # Verify webhook was NOT called for Case B
+        webhook_calls_b = [c for c in mock_post.call_args_list if c[0][0] == webhook_url]
+        assert len(webhook_calls_b) == 0
+    finally:
+        await channel.close()
+        await server.stop(0)
