@@ -2,6 +2,7 @@ import os
 import sys
 import asyncio
 import logging
+import httpx
 from dotenv import load_dotenv
 
 # Ensure the directory of this script is in pythonpath so we can import 'generated'
@@ -29,6 +30,30 @@ if os.path.exists(env_path):
     logger.info(f"Loaded environment variables from {env_path}")
 else:
     logger.warning(f"No .env file found at {env_path}, using defaults")
+
+async def trigger_webhook(text: str, risk_score: float, category: str, action: str):
+    webhook_url = os.environ.get("MAKE_WEBHOOK_URL")
+    if not webhook_url:
+        logger.warning("MAKE_WEBHOOK_URL is not set. Skipping Make.com webhook trigger.")
+        return
+        
+    payload = {
+        "text": text,
+        "risk_score": risk_score,
+        "threat_category": category,
+        "suggested_action": action
+    }
+    
+    logger.info(f"Sending webhook notification to Make.com (URL: {webhook_url})...")
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            response = await client.post(webhook_url, json=payload)
+            if response.status_code in [200, 201, 202]:
+                logger.info("Make.com webhook triggered successfully.")
+            else:
+                logger.error(f"Make.com webhook failed with status code {response.status_code}: {response.text}")
+    except Exception as e:
+        logger.error(f"Error triggering Make.com webhook: {e}")
 
 class ThreatNotifierServicer(threat_notifier_pb2_grpc.ThreatNotifierServicer):
     def __init__(self):
@@ -100,6 +125,16 @@ class TranscriptStreamServicer(transcript_stream_pb2_grpc.TranscriptStreamServic
             )
             logger.info(f"Broadcasting high risk alert: {alert.threat_category} (Score: {alert.risk_score})")
             await self.threat_notifier.broadcast_alert(alert)
+            
+            # Fire-and-forget Webhook triggering
+            asyncio.create_task(
+                trigger_webhook(
+                    text=text,
+                    risk_score=risk_score,
+                    category=alert.threat_category,
+                    action=alert.suggested_action
+                )
+            )
             
         return transcript_stream_pb2.Empty()
 
