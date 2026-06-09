@@ -16,6 +16,7 @@ def main():
         os.path.join(proto_dir, "audio_streamer.proto"),
         os.path.join(proto_dir, "threat_notifier.proto"),
         os.path.join(proto_dir, "control_stream.proto"),
+        os.path.join(proto_dir, "transcript_stream.proto"),
     ]
 
     cmd = [
@@ -49,6 +50,7 @@ def main():
                 content = content.replace("import audio_streamer_pb2", "from . import audio_streamer_pb2")
                 content = content.replace("import threat_notifier_pb2", "from . import threat_notifier_pb2")
                 content = content.replace("import control_stream_pb2", "from . import control_stream_pb2")
+                content = content.replace("import transcript_stream_pb2", "from . import transcript_stream_pb2")
                 
                 with open(filepath, "w") as f:
                     f.write(content)
