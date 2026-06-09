@@ -15,6 +15,13 @@ function App() {
   const [connectionStatus, setConnectionStatus] = useState<"connected" | "disconnected" | "reconnecting">("disconnected");
   const [alerts, setAlerts] = useState<ThreatAlert[]>([]);
   const [activeAlert, setActiveAlert] = useState<ThreatAlert | null>(null);
+  const [lastHeardText, setLastHeardText] = useState<string>("");
+  const [lastHeardTime, setLastHeardTime] = useState<string>("");
+  const [isCapturingVoice, setIsCapturingVoice] = useState<boolean>(false);
+
+  const [sensorOnline, setSensorOnline] = useState<boolean>(false);
+  const [sttOnline, setSttOnline] = useState<boolean>(false);
+  const [brainOnline, setBrainOnline] = useState<boolean>(false);
 
   useEffect(() => {
     // Get initial status
@@ -31,6 +38,8 @@ function App() {
       setConnectionStatus(event.payload as any);
     });
 
+    let captureTimeoutId: any = null;
+
     // Listen to threat alerts from backend
     const unlistenAlerts = listen<{
       matched_text: string;
@@ -43,13 +52,51 @@ function App() {
         ...payload,
         timestamp: new Date().toLocaleTimeString(),
       };
-      setAlerts((prev) => [newAlert, ...prev]);
-      setActiveAlert(newAlert);
+
+      // Set live capturing feedback
+      setLastHeardText(payload.matched_text);
+      setLastHeardTime(new Date().toLocaleTimeString());
+      setIsCapturingVoice(true);
+
+      if (captureTimeoutId) {
+        clearTimeout(captureTimeoutId);
+      }
+
+      // Pulse capturing indicator off after 3 seconds
+      captureTimeoutId = setTimeout(() => {
+        setIsCapturingVoice(false);
+      }, 3000);
+
+      // Only add to threat logs and pop up modal if risk_score is high
+      if (payload.risk_score > 0.75) {
+        setAlerts((prev) => [newAlert, ...prev]);
+        setActiveAlert(newAlert);
+      }
     });
+
+    // Services status polling
+    const checkServices = () => {
+      invoke<{ capture_service: boolean; stt_service: boolean; agent_service: boolean; }>("get_services_status")
+        .then((res) => {
+          setSensorOnline(res.capture_service);
+          setSttOnline(res.stt_service);
+          setBrainOnline(res.agent_service);
+        })
+        .catch((err) => {
+          console.error("Failed to check services status:", err);
+        });
+    };
+
+    checkServices();
+    const serviceInterval = setInterval(checkServices, 2000);
 
     return () => {
       unlistenStatus.then((fn) => fn());
       unlistenAlerts.then((fn) => fn());
+      clearInterval(serviceInterval);
+      if (captureTimeoutId) {
+        clearTimeout(captureTimeoutId);
+      }
     };
   }, []);
 
@@ -81,26 +128,37 @@ function App() {
           <span className="font-semibold tracking-wider text-sm text-neutral-300">TRUEVOICE // EXECUTIVE SECURITY</span>
         </div>
 
-        {/* Connection Status Badge */}
-        <div className="flex items-center gap-2 text-xs">
-          {connectionStatus === "connected" && (
-            <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-muted border border-emerald-500/20 px-3 py-1.5 rounded-full">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              <span>SECURE CHANNEL ACTIVE</span>
-            </div>
-          )}
-          {connectionStatus === "reconnecting" && (
-            <div className="flex items-center gap-2 bg-amber-500/10 text-amber-400 border border-amber-500/20 px-3 py-1.5 rounded-full">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping" />
-              <span>RECONNECTING TO AGENT...</span>
-            </div>
-          )}
-          {connectionStatus === "disconnected" && (
-            <div className="flex items-center gap-2 bg-red-500/10 text-red-400 border border-red-500/20 px-3 py-1.5 rounded-full">
-              <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
-              <span>DISCONNECTED</span>
-            </div>
-          )}
+        {/* Services Status Badges */}
+        <div className="flex items-center gap-2.5 text-xs">
+          {/* Sensor Status */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all duration-300 ${
+            sensorOnline 
+              ? "bg-emerald-500/10 text-emerald-muted border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]" 
+              : "bg-red-500/10 text-red-400 border-red-500/20"
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${sensorOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="font-mono text-[9px] tracking-wider font-bold">SENSOR [C++]</span>
+          </div>
+
+          {/* STT Status */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all duration-300 ${
+            sttOnline 
+              ? "bg-emerald-500/10 text-emerald-muted border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]" 
+              : "bg-red-500/10 text-red-400 border-red-500/20"
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${sttOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="font-mono text-[9px] tracking-wider font-bold">STT [INF]</span>
+          </div>
+
+          {/* Brain / Agent Status */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full border transition-all duration-300 ${
+            brainOnline 
+              ? "bg-emerald-500/10 text-emerald-muted border-emerald-500/20 shadow-[0_0_8px_rgba(16,185,129,0.15)]" 
+              : "bg-red-500/10 text-red-400 border-red-500/20"
+          }`}>
+            <span className={`w-2 h-2 rounded-full ${brainOnline ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+            <span className="font-mono text-[9px] tracking-wider font-bold">BRAIN [AGY]</span>
+          </div>
         </div>
       </header>
 
@@ -122,16 +180,62 @@ function App() {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col items-center text-center max-w-md">
-              <div className="w-32 h-32 rounded-full bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center mb-6 pulsate-secure">
-                <svg className="w-16 h-16 text-emerald-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                </svg>
+            <div className="flex flex-col items-center text-center max-w-md w-full">
+              <div className={`w-32 h-32 rounded-full border flex items-center justify-center mb-6 transition-all duration-300 ${
+                sensorOnline
+                  ? isCapturingVoice 
+                    ? "bg-emerald-500/20 border-emerald-500/60 scale-105 shadow-[0_0_30px_rgba(16,185,129,0.4)]" 
+                    : "bg-emerald-500/10 border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                  : "bg-red-500/10 border-red-500/30"
+              }`}>
+                {sensorOnline ? (
+                  <div className="flex items-end gap-1.5 h-10 pb-1">
+                    <span className={`w-1.5 rounded-full bg-emerald-400 transition-all duration-300 ${isCapturingVoice ? 'h-8 animate-bounce' : 'h-3 animate-pulse'}`} style={{ animationDuration: isCapturingVoice ? '0.6s' : '1.5s', animationDelay: '0.1s' }} />
+                    <span className={`w-1.5 rounded-full bg-emerald-400 transition-all duration-300 ${isCapturingVoice ? 'h-12 animate-bounce' : 'h-5 animate-pulse'}`} style={{ animationDuration: isCapturingVoice ? '0.6s' : '1.5s', animationDelay: '0.3s' }} />
+                    <span className={`w-1.5 rounded-full bg-emerald-400 transition-all duration-300 ${isCapturingVoice ? 'h-10 animate-bounce' : 'h-4 animate-pulse'}`} style={{ animationDuration: isCapturingVoice ? '0.6s' : '1.5s', animationDelay: '0.5s' }} />
+                    <span className={`w-1.5 rounded-full bg-emerald-400 transition-all duration-300 ${isCapturingVoice ? 'h-6 animate-bounce' : 'h-2 animate-pulse'}`} style={{ animationDuration: isCapturingVoice ? '0.6s' : '1.5s', animationDelay: '0.7s' }} />
+                  </div>
+                ) : (
+                  <svg className="w-16 h-16 text-red-400/80" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                )}
               </div>
-              <h2 className="text-2xl font-bold text-emerald-muted mb-2 tracking-wide">SYSTEM SECURE</h2>
-              <p className="text-sm text-neutral-400 max-w-sm">
-                Local microphone activity is active and monitored. All transcriptions are processed locally in-memory.
+              
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-2 h-2 rounded-full ${sensorOnline ? 'bg-emerald-500 animate-ping' : 'bg-red-500'}`} />
+                <h2 className={`text-2xl font-bold tracking-wide ${sensorOnline ? 'text-emerald-muted' : 'text-red-400'}`}>
+                  {sensorOnline ? 'LISTENING ACTIVE' : 'SENSOR OFFLINE'}
+                </h2>
+              </div>
+              
+              <p className="text-sm text-neutral-400 max-w-sm mb-6">
+                {sensorOnline 
+                  ? 'Local microphone is captured and monitored. Speak live to test threat detection.' 
+                  : 'Start the C++ audio capture service to begin scanning the default microphone.'}
               </p>
+
+              {/* Real-Time Audio Transcription Monitor */}
+              <div className="w-full bg-white/[0.02] border border-white/5 rounded-xl p-4 text-left shadow-inner">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[10px] text-neutral-500 font-bold uppercase tracking-widest flex items-center gap-1.5">
+                    <span className={`w-1.5 h-1.5 rounded-full ${isCapturingVoice ? 'bg-emerald-400 animate-ping' : 'bg-emerald-500/40'}`} />
+                    LIVE AUDIO STREAM MONITOR
+                  </span>
+                  {lastHeardTime && (
+                    <span className="text-[9px] text-neutral-600 font-mono">{lastHeardTime}</span>
+                  )}
+                </div>
+                {lastHeardText ? (
+                  <p className="text-xs text-neutral-300 italic border-l-2 border-emerald-500/30 pl-3 py-1 font-mono transition-all duration-300">
+                    "{lastHeardText}"
+                  </p>
+                ) : (
+                  <p className="text-xs text-neutral-600 italic border-l-2 border-white/5 pl-3 py-1">
+                    Waiting for speech input... Speak to test.
+                  </p>
+                )}
+              </div>
             </div>
           )}
 

@@ -38,6 +38,42 @@ async fn get_connection_status(state: tauri::State<'_, AppState>) -> Result<Stri
     Ok(status.clone())
 }
 
+#[derive(Clone, serde::Serialize)]
+pub struct ServicesStatus {
+    pub capture_service: bool,
+    pub stt_service: bool,
+    pub agent_service: bool,
+}
+
+#[tauri::command]
+async fn get_services_status() -> Result<ServicesStatus, String> {
+    use std::net::TcpStream;
+    use std::time::Duration;
+
+    let timeout = Duration::from_millis(200);
+
+    let capture_service = TcpStream::connect_timeout(
+        &"127.0.0.1:50051".parse().unwrap(),
+        timeout,
+    ).is_ok();
+
+    let stt_service = TcpStream::connect_timeout(
+        &"127.0.0.1:50052".parse().unwrap(),
+        timeout,
+    ).is_ok();
+
+    let agent_service = TcpStream::connect_timeout(
+        &"127.0.0.1:50053".parse().unwrap(),
+        timeout,
+    ).is_ok();
+
+    Ok(ServicesStatus {
+        capture_service,
+        stt_service,
+        agent_service,
+    })
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let connection_status = Arc::new(Mutex::new("disconnected".to_string()));
@@ -48,10 +84,10 @@ pub fn run() {
         .manage(AppState {
             connection_status,
         })
-        .invoke_handler(tauri::generate_handler![greet, get_connection_status])
+        .invoke_handler(tauri::generate_handler![greet, get_connection_status, get_services_status])
         .setup(move |app| {
             let app_handle = app.handle().clone();
-            tokio::spawn(async move {
+            tauri::async_runtime::spawn(async move {
                 loop {
                     // Update status to reconnecting
                     {

@@ -4,6 +4,7 @@
 #include <chrono>
 #include <csignal>
 #include <atomic>
+#include <cstdlib>
 
 std::atomic<bool> keep_running(true);
 
@@ -21,18 +22,36 @@ int main() {
 
     AudioProcessor processor;
     
-    // Configure default target ports
-    std::string stt_address = "127.0.0.1:50051";
-    std::string control_address = "127.0.0.1:50054";
+    // Configure target ports from environment variables or use defaults aligned to .env
+    char* env_stt_host = std::getenv("INFERENCE_STT_GRPC_HOST");
+    char* env_stt_port = std::getenv("INFERENCE_STT_GRPC_PORT");
+    char* env_control_host = std::getenv("AUDIO_CAPTURE_GRPC_HOST");
+    char* env_control_port = std::getenv("AUDIO_CAPTURE_GRPC_PORT");
+
+    std::string stt_host = env_stt_host ? env_stt_host : "127.0.0.1";
+    std::string stt_port = env_stt_port ? env_stt_port : "50052";
+    std::string stt_address = stt_host + ":" + stt_port;
+
+    std::string control_host = env_control_host ? env_control_host : "127.0.0.1";
+    std::string control_port = env_control_port ? env_control_port : "50051";
+    std::string control_address = control_host + ":" + control_port;
+
+    std::cout << "[C++ Client] Target STT Server: " << stt_address << std::endl;
+    std::cout << "[C++ Client] Control Server: " << control_address << std::endl;
 
     if (!processor.Initialize(stt_address, control_address)) {
         std::cerr << "[C++ Client] Initialization failed!" << std::endl;
         return 1;
     }
 
-    // Set initial application blocklist
-    processor.SetBlocklist({"zoom.us", "Zoom", "WhatsApp", "Discord"});
-
+    // Set initial application blocklist (WhatsApp removed temporarily for testing)
+    char* env_debug = std::getenv("DEBUG_MODE");
+    if (env_debug && std::string(env_debug) == "true") {
+        std::cout << "[C++ Client] DEBUG_MODE active: clearing application blocklist for live testing." << std::endl;
+        processor.SetBlocklist({});
+    } else {
+        processor.SetBlocklist({"zoom.us", "Zoom", "Discord"});
+    }
     std::cout << "[C++ Client] Service running. Press Ctrl+C to terminate." << std::endl;
 
     // Start capturing default microphone audio
@@ -42,6 +61,12 @@ int main() {
 
     while (keep_running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+        if (processor.IsAborted()) {
+            std::cout << "[C++ Client] Capture aborted by control server. Terminating process." << std::endl;
+            keep_running = false;
+            break;
+        }
 
         // Periodic blocklist check
         if (processor.IsCapturing()) {

@@ -31,7 +31,13 @@ struct AudioProcessor::Impl {
                                   const truevoice::control::AbortRequest* request,
                                   truevoice::control::AbortAck* response) override {
             std::cout << "[C++ Control Server] Abort requested. Reason: " << request->reason() << std::endl;
-            m_processor->AbortCapture(request->reason());
+            
+            // Spawn a thread to perform the abort asynchronously to prevent distributed deadlocks
+            std::string reason = request->reason();
+            std::thread([this, reason]() {
+                m_processor->AbortCapture(reason);
+            }).detach();
+
             response->set_success(true);
             return grpc::Status::OK;
         }
