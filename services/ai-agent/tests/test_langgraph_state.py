@@ -91,7 +91,7 @@ async def test_ner_trusted_contact_whitelist():
         
         # Verify mock C++ server received the AbortCapture call
         assert c_servicer.aborted is True
-        assert "danny" in c_servicer.last_reason.lower()
+        assert c_servicer.last_reason == "Whitelisted contact detected"
         assert c_servicer.last_pid == 9999
     finally:
         await c_server.stop(0)
