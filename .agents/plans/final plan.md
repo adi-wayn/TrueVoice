@@ -6,9 +6,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Establish the gRPC pipeline between the C++ audio capture and the Python inference server.
 
 ### Developer 1 (HALEL) - Python Backend
-- [ ] Refactor `services/inference-stt/main.py` into a fully functional gRPC server implementing the `AudioStreamer` service.
-- [ ] Add basic mocking to the `StreamAudio` RPC to print received bytes (verify connection before adding Whisper).
-- [ ] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
+- [x] Refactor `services/inference-stt/main.py` into a fully functional gRPC server implementing the `AudioStreamer` service.
+- [x] Add basic mocking to the `StreamAudio` RPC to print received bytes (verify connection before adding Whisper).
+- [x] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
 
 ### Developer 2 (ADI) - C++ Client
 - [ ] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
@@ -21,9 +21,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Implement the LangGraph reasoning engine and secure it against prompt injection attacks.
 
 ### Developer 1 (HALEL) - AI & Security
-- [ ] Configure project rules in Antigravity to strictly enforce a "Zero-Trust" policy, treating all transcribed audio as untrusted data.
-- [ ] Instruct Antigravity to refuse data-plane instructions (e.g., "Ignore previous instructions") to prevent prompt injection.
-- [ ] Implement the LangGraph state machine in `ai-agent` to analyze the context window for social engineering threats (e.g., OTP requests).
+- [x] Configure project rules in Antigravity to strictly enforce a "Zero-Trust" policy, treating all transcribed audio as untrusted data.
+- [x] Instruct Antigravity to refuse data-plane instructions (e.g., "Ignore previous instructions") to prevent prompt injection.
+- [x] Implement the LangGraph state machine in `ai-agent` to analyze the context window for social engineering threats (e.g., OTP requests).
 
 ---
 
@@ -41,9 +41,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Connect the local AI agent to external notification systems.
 
 ### Developer 1 (HALEL) - Cloud Integrations
-- [ ] Create a new Scenario in Make.com with a Custom Webhook module as the trigger.
-- [ ] Implement an HTTP POST request in the `ai-agent` that sends data to the Make.com Webhook URL when `risk_score > 0.8`.
-- [ ] Add an Email/Gmail module in Make.com to automatically send a warning email to the user when the webhook is triggered.
+- [x] Create a new Scenario in Make.com with a Custom Webhook module as the trigger.
+- [x] Implement an HTTP POST request in the `ai-agent` that sends data to the Make.com Webhook URL when `risk_score > 0.8`.
+- [x] Add an Email/Gmail module in Make.com to automatically send a warning email to the user when the webhook is triggered.
 
 ---
 
