@@ -11,9 +11,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 - [x] Set up the `ThreatNotifier` gRPC server within `services/ai-agent/main.py` to prepare for outward alerts.
 
 ### Developer 2 (ADI) - C++ Client
-- [ ] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
-- [ ] Integrate an audio library (e.g., PortAudio/RtAudio) into the CMake build.
-- [ ] Implement the logic to capture local microphone data and stream it via `AudioChunk` messages to the Python backend.
+- [x] Update `services/audio-capture/src/main.cpp` to act as a gRPC client connecting to the Python `AudioStreamer` server.
+- [x] Integrate an audio library (e.g., PortAudio/RtAudio) into the CMake build.
+- [x] Implement the logic to capture local microphone data and stream it via `AudioChunk` messages to the Python backend.
 
 ---
 
@@ -31,9 +31,9 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Automate security checks and set up the cloud repository pipeline.
 
 ### Developer 2 (ADI) - DevOps
-- [ ] Write the `scripts/ai_reviewer.py` script to scan Pull Requests for vulnerabilities.
-- [ ] Update the GitHub Actions workflow (`.github/workflows/build-and-test.yml`) to trigger the AI reviewer on every push/PR.
-- [ ] Ensure the workflow has the correct `permissions` (contents: read, pull-requests: write) to comment on PRs without crashing.
+- [x] Write the `scripts/ai_reviewer.py` script to scan Pull Requests for vulnerabilities.
+- [x] Update the GitHub Actions workflow (`.github/workflows/build-and-test.yml`) to trigger the AI reviewer on every push/PR.
+- [x] Ensure the workflow has the correct `permissions` (contents: read, pull-requests: write) to comment on PRs without crashing.
 
 ---
 
@@ -51,8 +51,8 @@ This document outlines the remaining development tasks for the TrueVoice project
 **Goal:** Visualize alerts and test the entire system flow.
 
 ### Developer 2 (ADI) - Frontend (Tauri)
-- [ ] Connect the React frontend (`apps/dashboard/src/App.tsx`) to the `ThreatNotifier` gRPC service using Tauri commands.
-- [ ] Build a visual alert component that pops up when a threat is detected.
+- [x] Connect the React frontend (`apps/dashboard/src/App.tsx`) to the `ThreatNotifier` gRPC service using Tauri commands.
+- [x] Build a visual alert component that pops up when a threat is detected.
 
 ### Shared (HALEL & ADI) - Red Team Testing
 - [ ] Conduct a live End-to-End test: Speak a simulated vishing attack into the microphone.
