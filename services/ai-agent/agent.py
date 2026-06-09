@@ -127,7 +127,7 @@ async def gatekeeper_node(state: AgentState) -> dict:
     if whitelist_detected:
         logger.info("Gatekeeper Node: Whitelisted contact detected. Triggering capture abort.")
         # Trigger abort to C++ service
-        reason = f"Whitelisted contact '{matched_name}' detected"
+        reason = "Whitelisted contact detected"
         await trigger_c_abort(reason, pid)
         # Session memory purge
         return {
@@ -135,7 +135,7 @@ async def gatekeeper_node(state: AgentState) -> dict:
             "whitelist_detected": True,
             "risk_score": 0.0,
             "threat_category": "Safe",
-            "suggested_action": f"Session aborted: Whitelisted contact '{matched_name}' detected."
+            "suggested_action": "Session aborted: Whitelisted contact detected."
         }
     else:
         # Append to sliding window
