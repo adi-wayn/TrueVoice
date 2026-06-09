@@ -125,7 +125,7 @@ async def gatekeeper_node(state: AgentState) -> dict:
             break
             
     if whitelist_detected:
-        logger.info(f"Gatekeeper Node: Whitelisted contact '{matched_name}' detected. Triggering capture abort.")
+        logger.info("Gatekeeper Node: Whitelisted contact detected. Triggering capture abort.")
         # Trigger abort to C++ service
         reason = f"Whitelisted contact '{matched_name}' detected"
         await trigger_c_abort(reason, pid)
