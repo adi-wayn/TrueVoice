@@ -114,19 +114,19 @@ class TranscriptStreamServicer(transcript_stream_pb2_grpc.TranscriptStreamServic
             logger.info(f"Whitelist detected. Purging state cache for PID {pid}.")
             self.states.pop(pid, None)
             
-        # Broadcast the alert if risk_score > 0.8
+        # Broadcast the alert to keep the UI informed in real-time (helps show active listening)
         risk_score = new_state.get("risk_score", 0.0)
+        alert = threat_notifier_pb2.ThreatAlert(
+            matched_text=text,
+            risk_score=risk_score,
+            threat_category=new_state.get("threat_category", "Safe"),
+            suggested_action=new_state.get("suggested_action", "")
+        )
+        logger.info(f"Broadcasting transcript alert: {alert.threat_category} (Score: {alert.risk_score})")
+        await self.threat_notifier.broadcast_alert(alert)
+        
         if risk_score > 0.8:
-            alert = threat_notifier_pb2.ThreatAlert(
-                matched_text=text,
-                risk_score=risk_score,
-                threat_category=new_state.get("threat_category", "Unknown Threat"),
-                suggested_action=new_state.get("suggested_action", "")
-            )
-            logger.info(f"Broadcasting high risk alert: {alert.threat_category} (Score: {alert.risk_score})")
-            await self.threat_notifier.broadcast_alert(alert)
-            
-            # Fire-and-forget Webhook triggering
+            # Fire-and-forget Webhook triggering for high risk
             asyncio.create_task(
                 trigger_webhook(
                     text=text,

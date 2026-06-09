@@ -126,9 +126,7 @@ async def gatekeeper_node(state: AgentState) -> dict:
             
     if whitelist_detected:
         logger.info("Gatekeeper Node: Whitelisted contact detected. Triggering capture abort.")
-        # Trigger abort to C++ service
-        reason = "Whitelisted contact detected"
-        await trigger_c_abort(reason, pid)
+        asyncio.create_task(trigger_c_abort("Whitelisted contact detected", pid))
         # Session memory purge
         return {
             "transcript": [],
