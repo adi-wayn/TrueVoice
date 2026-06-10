@@ -44,14 +44,8 @@ int main() {
         return 1;
     }
 
-    // Set initial application blocklist (WhatsApp removed temporarily for testing)
-    char* env_debug = std::getenv("DEBUG_MODE");
-    if (env_debug && std::string(env_debug) == "true") {
-        std::cout << "[C++ Client] DEBUG_MODE active: clearing application blocklist for live testing." << std::endl;
-        processor.SetBlocklist({});
-    } else {
-        processor.SetBlocklist({"zoom.us", "Zoom", "Discord"});
-    }
+    // Set initial application blocklist
+    processor.SetBlocklist({"zoom.us", "Zoom", "Discord"});
     std::cout << "[C++ Client] Service running. Press Ctrl+C to terminate." << std::endl;
 
     // Start capturing default microphone audio

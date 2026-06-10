@@ -175,6 +175,68 @@ def post_pr_comment(repo_name, pr_number, token, violations):
     except Exception as e:
         print(f"Failed to post comment to PR #{pr_number}: {e}")
 
+def post_pr_comment_text(repo_name, pr_number, token, body):
+    url = f"https://api.github.com/repos/{repo_name}/issues/{pr_number}/comments"
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "TrueVoice-AI-Reviewer-Action"
+    }
+    data = json.dumps({"body": body}).encode("utf-8")
+    req = urllib.request.Request(url, data=data, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(req) as response:
+            print(f"Comment posted successfully to PR #{pr_number}. Response code: {response.getcode()}")
+    except Exception as e:
+        print(f"Failed to post comment to PR #{pr_number}: {e}")
+
+def run_gemini_review(diff_text, api_key):
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={api_key}"
+    
+    prompt = (
+        "You are a professional security reviewer. Your task is to audit the following git diff of a codebase "
+        "for security vulnerabilities. Specifically, look for:\n"
+        "1. Hardcoded secrets, API keys, passwords, or credentials.\n"
+        "2. Bypass or deletion of security validation, input sanitization, or Filter-Verify checks.\n"
+        "3. Any other critical security vulnerabilities.\n\n"
+        "IMPORTANT CONTEXT:\n"
+        "This is an academic / prototype project. It is expected to use mock classes, mock services, and mock test interfaces. "
+        "Do NOT report mock files, simulation scripts, or test frameworks as security violations. Focus strictly on real "
+        "production code changes in services/ or apps/.\n\n"
+        "INSTRUCTIONS FOR YOUR RESPONSE:\n"
+        "1. Start your response with a summary report of your findings in Markdown format.\n"
+        "2. If you find any actual critical vulnerability that violates the rules (e.g. real hardcoded credentials, bypass of verification in services), "
+        "you MUST include the exact string 'VULNERABILITY_FOUND' in your response.\n"
+        "3. If everything is secure or only mock/simulation vulnerabilities are present, do NOT include 'VULNERABILITY_FOUND'.\n\n"
+        f"Git Diff:\n{diff_text}"
+    )
+    
+    payload = {
+        "contents": [{
+            "parts": [{
+                "text": prompt
+            }]
+        }]
+    }
+    
+    data = json.dumps(payload).encode("utf-8")
+    req = urllib.request.Request(
+        url,
+        data=data,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    
+    try:
+        with urllib.request.urlopen(req) as response:
+            res_data = json.loads(response.read().decode("utf-8"))
+            review_text = res_data["candidates"][0]["content"]["parts"][0]["text"]
+            return review_text
+    except Exception as e:
+        print(f"Error calling Gemini API: {e}")
+        return None
+
 def main():
     try:
         diff_text = get_diff()
@@ -185,33 +247,76 @@ def main():
     file_changes = parse_diff(diff_text)
     violations = scan_changes(file_changes)
     
-    if violations:
-        print(f"🚨 Found {len(violations)} security violations!")
-        for v in violations:
-            print(f"[{v['rule']}] {v['file']}: {v['line']}")
-            
-        repo_name = os.environ.get("GITHUB_REPOSITORY")
-        token = os.environ.get("GITHUB_TOKEN")
-        event_path = os.environ.get("GITHUB_EVENT_PATH")
-        
-        pr_number = None
-        if event_path:
-            try:
-                with open(event_path, "r") as f:
-                    event_data = json.load(f)
-                pr_number = event_data.get("pull_request", {}).get("number")
-            except Exception as e:
-                print(f"Could not parse GITHUB_EVENT_PATH: {e}")
-                
-        if repo_name and pr_number and token:
-            print(f"Posting comments to PR #{pr_number} on {repo_name}...")
-            post_pr_comment(repo_name, pr_number, token, violations)
+    gemini_api_key = os.environ.get("GEMINI_API_KEY")
+    gemini_report = ""
+    gemini_vulnerability_found = False
+    
+    if gemini_api_key:
+        print("GEMINI_API_KEY detected. Initiating Gemini AI Security review...")
+        review_text = run_gemini_review(diff_text, gemini_api_key)
+        if review_text:
+            gemini_report = review_text
+            if "VULNERABILITY_FOUND" in review_text:
+                gemini_vulnerability_found = True
         else:
-            print("Not in GHA PR environment, skipping PR comment posting.")
+            print("Gemini AI Security review failed or returned empty result.")
+    else:
+        print("GEMINI_API_KEY not found in environment. Skipping Gemini AI Security review.")
+        
+    # Combine results
+    has_violations = bool(violations) or gemini_vulnerability_found
+    
+    # Compile the final report body
+    report_body = ""
+    if violations:
+        report_body += "## ⚠️ TrueVoice Static Security Scan: Violations Detected\n\n"
+        report_body += "| File | Line | Rule | Description |\n"
+        report_body += "| --- | --- | --- | --- |\n"
+        for v in violations:
+            escaped_line = v["line"].replace("|", "\\|")
+            report_body += f"| `{v['file']}` | `{escaped_line}` | **{v['rule']}** | {v['desc']} |\n"
+        report_body += "\n"
+        
+    if gemini_report:
+        report_body += "## 🤖 TrueVoice Gemini AI Security Report\n\n"
+        report_body += gemini_report
+        
+    if not has_violations:
+        report_body = "## ✅ TrueVoice Security Scan: Passed\n\nNo security vulnerabilities or compliance issues were detected in this revision."
+        
+    # Write report to review.md
+    try:
+        with open("review.md", "w") as f:
+            f.write(report_body)
+        print("Security audit report written to review.md")
+    except Exception as e:
+        print(f"Failed to write review.md: {e}")
+        
+    # Post PR comment if running in GitHub Actions PR context
+    repo_name = os.environ.get("GITHUB_REPOSITORY")
+    token = os.environ.get("GITHUB_TOKEN")
+    event_path = os.environ.get("GITHUB_EVENT_PATH")
+    
+    pr_number = None
+    if event_path:
+        try:
+            with open(event_path, "r") as f:
+                event_data = json.load(f)
+            pr_number = event_data.get("pull_request", {}).get("number")
+        except Exception as e:
+            print(f"Could not parse GITHUB_EVENT_PATH: {e}")
             
+    if repo_name and pr_number and token:
+        print(f"Posting security review comment to PR #{pr_number} on {repo_name}...")
+        post_pr_comment_text(repo_name, pr_number, token, report_body)
+    else:
+        print("Not in GHA PR environment, skipping PR comment posting.")
+        
+    if has_violations:
+        print("🚨 Security scan failed! Violations or vulnerabilities detected.")
         sys.exit(1)
     else:
-        print("✅ No security violations found. Review passed.")
+        print("✅ Security scan passed.")
         sys.exit(0)
 
 if __name__ == "__main__":

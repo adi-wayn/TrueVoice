@@ -105,17 +105,54 @@ def rule_based_evaluate(transcript: List[str]) -> tuple[float, str, str]:
         
     return 0.0, "Safe", "No action required."
 
+def filter_verify_pipeline(text: str) -> tuple[str, bool]:
+    # 1. Fast Structural Filter (Regex)
+    # Detect tag blocks like [SYSTEM_OVERRIDE_HOOK] or similar brackets
+    has_injection = False
+    
+    # Regex for system override hook tags (case-insensitive)
+    tag_pattern = r"\[SYSTEM_OVERRIDE_HOOK\]|<SYSTEM_OVERRIDE_HOOK>|<system_override>|\[system_override\]"
+    if re.search(tag_pattern, text, re.IGNORECASE):
+        has_injection = True
+        text = re.sub(tag_pattern, "[REDACTED_INJECTION]", text, flags=re.IGNORECASE)
+        
+    # Regex for JSON-like bracket payloads or raw script injections in plain text
+    # e.g., anything inside curly braces that looks like a JSON block
+    json_pattern = r"\{[^{}]*\"[^{}]*\"[^{}]*\}"
+    if re.search(json_pattern, text):
+        has_injection = True
+        text = re.sub(json_pattern, "[REDACTED_INJECTION_PAYLOAD]", text)
+        
+    # 2. Deep verification step (simulate/rule-based check for override intent)
+    text_lower = text.lower()
+    override_keywords = [
+        "ignore previous instructions",
+        "ignore previous instruction",
+        "system override",
+        "disable alert",
+        "assume role",
+        "disable the security alerts",
+        "disarm the security alerts"
+    ]
+    if any(kw in text_lower for kw in override_keywords):
+        has_injection = True
+        
+    return text, has_injection
+
 async def gatekeeper_node(state: AgentState) -> dict:
     new_sentence = state.get("new_sentence", "")
     pid = state.get("process_id", 0)
     transcript = list(state.get("transcript", []))
     
+    # Run through the 2-step Filter-Verify pipeline
+    sanitized_sentence, has_injection = filter_verify_pipeline(new_sentence)
+    
     # Load trusted contact whitelist from env (comma-separated, default is ['danny'])
     whitelist_str = os.environ.get("TRUSTED_CONTACT_WHITELIST", "danny")
     whitelist = [name.strip().lower() for name in whitelist_str.split(",") if name.strip()]
     
-    # Simple NER check: word match
-    words = re.findall(r'\b\w+\b', new_sentence.lower())
+    # Simple NER check: word match on sanitized text
+    words = re.findall(r'\b\w+\b', sanitized_sentence.lower())
     whitelist_detected = False
     matched_name = ""
     for name in whitelist:
@@ -136,20 +173,37 @@ async def gatekeeper_node(state: AgentState) -> dict:
             "suggested_action": "Session aborted: Whitelisted contact detected."
         }
     else:
-        # Append to sliding window
-        transcript.append(new_sentence)
+        # Append sanitized sentence to sliding window
+        transcript.append(sanitized_sentence)
         # Limit context window to last 15 sentences
         if len(transcript) > 15:
             transcript = transcript[-15:]
-        return {
+            
+        ret = {
             "transcript": transcript,
             "whitelist_detected": False
         }
+        
+        # If Filter-Verify flagged an injection, preemptively set threat status
+        if has_injection:
+            ret["risk_score"] = 1.0
+            ret["threat_category"] = "Prompt Injection Attack"
+            ret["suggested_action"] = "WARNING: Detected attempt to manipulate the AI threat agent. Please terminate the call."
+            
+        return ret
 
 async def evaluator_node(state: AgentState) -> dict:
     # If whitelist was detected in gatekeeper, skip analysis
     if state.get("whitelist_detected", False):
         return {}
+        
+    # If a prompt injection attack was already flagged by Filter-Verify in gatekeeper, preserve it
+    if state.get("threat_category") == "Prompt Injection Attack":
+        return {
+            "risk_score": state.get("risk_score", 1.0),
+            "threat_category": "Prompt Injection Attack",
+            "suggested_action": state.get("suggested_action", "WARNING: Detected attempt to manipulate the AI threat agent. Please terminate the call.")
+        }
         
     transcript = state.get("transcript", [])
     if not transcript:
